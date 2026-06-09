@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>My Orders</h1>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (orders.length === 0) { %>
+      <div class="empty-cart">
+        <p>No orders yet.</p>
+        <a href="/student/menu" class="btn-primary">Start ordering</a>
+      </div>
+    <% } else { %>
+      <div class="orders-list">
+        <% orders.forEach(order => { %>
+        <div class="order-card">
+          <div class="order-card-header">
+            <div>
+              <span class="order-id">Order #<%= order.id %></span>
+              <span class="order-date"><%= new Date(order.createdAt).toLocaleString() %></span>
+            </div>
+            <div class="order-card-right">
+              <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span>
+              <span class="order-total">₱<%= parseFloat(order.totalPrice).toFixed(2) %></span>
+            </div>
+          </div>
+          <div class="order-card-items">
+            <% order.orderLines.forEach(line => { %>
+              <span class="order-line-item"><%= line.quantity %>× <%= line.menuItem.name %> <em>(<%= line.menuItem.vendor.name %>)</em></span>
+            <% }) %>
+          </div>
+          <a href="/student/orders/<%= order.id %>" class="btn-ghost btn-sm">View Receipt</a>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

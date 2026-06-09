@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body class="auth-page">
+  <div class="auth-container">
+    <div class="auth-brand">
+      <span class="brand-byte">Byte</span><span class="brand-market">Market</span>
+      <p>University Food Court</p>
+    </div>
+    <%- include('../partials/flash') %>
+    <form class="auth-form" action="/login" method="POST">
+      <h2>Sign In</h2>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="e.g. student1" required autofocus />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn-primary btn-full">Sign In</button>
+      <p class="auth-link">New student? <a href="/register">Create an account</a></p>
+    </form>
+    <div class="auth-hint">
+      <strong>Demo accounts:</strong><br/>
+      student1 / student123 &nbsp;|&nbsp; vendor1 / vendor123 &nbsp;|&nbsp; admin / admin123
+    </div>
+  </div>
+</body>
+</html>

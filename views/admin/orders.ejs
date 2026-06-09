@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header"><h1>All Orders</h1></div>
+    <section class="panel">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Student</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          <% orders.forEach(order => { %>
+          <tr>
+            <td><%= order.id %></td>
+            <td><%= order.student.username %></td>
+            <td>₱<%= parseFloat(order.totalPrice).toFixed(2) %></td>
+            <td><span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td>
+            <td><%= new Date(order.createdAt).toLocaleString() %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

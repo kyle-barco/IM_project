@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>Food Court</h1>
+      <p class="page-sub">Pick from any stall — checkout once.</p>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% vendors.forEach(vendor => { %>
+    <section class="vendor-section">
+      <div class="vendor-header">
+        <div>
+          <h2 class="vendor-name"><%= vendor.name %></h2>
+          <span class="stall-tag">Stall <%= vendor.stallNumber %></span>
+          <% if (vendor.description) { %><span class="vendor-desc"> · <%= vendor.description %></span><% } %>
+        </div>
+        <span class="badge badge-open">Open</span>
+      </div>
+
+      <% if (vendor.menuItems.length === 0) { %>
+        <p class="empty-state">No items available right now.</p>
+      <% } else { %>
+        <div class="menu-grid">
+          <% vendor.menuItems.forEach(item => { %>
+          <div class="menu-card">
+            <div class="menu-card-body">
+              <div class="menu-card-top">
+                <h3 class="item-name"><%= item.name %></h3>
+                <span class="item-price">₱<%= parseFloat(item.price).toFixed(2) %></span>
+              </div>
+              <% if (item.description) { %><p class="item-desc"><%= item.description %></p><% } %>
+              <% if (item.category) { %><span class="item-cat"><%= item.category %></span><% } %>
+              <p class="item-stock"><%= item.stockQuantity %> left</p>
+            </div>
+            <form action="/student/cart/add" method="POST" class="menu-card-form">
+              <input type="hidden" name="itemId" value="<%= item.id %>" />
+              <div class="qty-row">
+                <input type="number" name="quantity" value="1" min="1" max="<%= item.stockQuantity %>" class="qty-input" />
+                <button type="submit" class="btn-add">Add to Cart</button>
+              </div>
+            </form>
+          </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+    <% }) %>
+  </main>
+</body>
+</html>

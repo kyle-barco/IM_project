@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container container-narrow">
+    <div class="receipt">
+      <div class="receipt-header">
+        <div class="receipt-brand"><span class="brand-byte">Byte</span><span class="brand-market">Market</span></div>
+        <p class="receipt-sub">Self-pickup at the food court counter</p>
+        <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span>
+      </div>
+
+      <div class="receipt-meta">
+        <div><label>Order</label><span>#<%= order.id %></span></div>
+        <div><label>Date</label><span><%= new Date(order.createdAt).toLocaleString() %></span></div>
+      </div>
+
+      <%
+        const byVendor = {};
+        order.orderLines.forEach(line => {
+          const vname = line.menuItem.vendor.name;
+          if (!byVendor[vname]) byVendor[vname] = [];
+          byVendor[vname].push(line);
+        });
+      %>
+
+      <% Object.entries(byVendor).forEach(([vname, lines]) => { %>
+      <div class="receipt-vendor">
+        <h4 class="receipt-vendor-name"><%= vname %></h4>
+        <% lines.forEach(line => { %>
+        <div class="receipt-line">
+          <span><%= line.quantity %>× <%= line.menuItem.name %></span>
+          <span>₱<%= (parseFloat(line.unitPrice) * line.quantity).toFixed(2) %></span>
+        </div>
+        <% }) %>
+      </div>
+      <% }) %>
+
+      <div class="receipt-total">
+        <span>Total</span>
+        <span>₱<%= parseFloat(order.totalPrice).toFixed(2) %></span>
+      </div>
+
+      <div class="receipt-actions">
+        <a href="/student/orders" class="btn-ghost">Back to Orders</a>
+        <a href="/student/menu" class="btn-primary">Order Again</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1>Order Queue</h1>
+        <p class="page-sub"><%= vendor.name %> · Stall <%= vendor.stallNumber %></p>
+      </div>
+      <a href="/vendor/sales" class="btn-ghost">View Sales</a>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <% if (orders.length === 0) { %>
+      <div class="empty-cart"><p>No active orders right now. 🎉</p></div>
+    <% } else { %>
+      <div class="queue-grid">
+        <% orders.forEach(order => { %>
+        <div class="queue-card status-card-<%= order.status.toLowerCase() %>">
+          <div class="queue-card-header">
+            <span class="order-id">#<%= order.id %></span>
+            <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span>
+          </div>
+          <p class="queue-student"><%= order.student %></p>
+          <p class="queue-subtotal">₱<%= parseFloat(order.subtotal).toFixed(2) %></p>
+          <p class="queue-time"><%= new Date(order.createdAt).toLocaleTimeString() %></p>
+          <form action="/vendor/orders/<%= order.id %>/status" method="POST" class="queue-actions">
+            <% if (order.status === 'PENDING') { %>
+              <button name="status" value="PREPARING" class="btn-primary btn-sm">Start Preparing</button>
+              <button name="status" value="CANCELLED" class="btn-danger btn-sm">Cancel</button>
+            <% } else if (order.status === 'PREPARING') { %>
+              <button name="status" value="READY" class="btn-primary btn-sm">Mark Ready</button>
+            <% } else if (order.status === 'READY') { %>
+              <button name="status" value="COMPLETED" class="btn-success btn-sm">Complete</button>
+            <% } %>
+          </form>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

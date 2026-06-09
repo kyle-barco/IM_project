@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header"><h1>Manage Vendors</h1></div>
+    <%- include('../partials/flash') %>
+
+    <section class="panel">
+      <h3>Add Vendor</h3>
+      <form action="/admin/vendors" method="POST" class="inline-form">
+        <div class="field"><label>Name</label><input type="text" name="name" required /></div>
+        <div class="field"><label>Stall Number</label><input type="text" name="stallNumber" required placeholder="e.g. C1" /></div>
+        <div class="field"><label>Description</label><input type="text" name="description" /></div>
+        <button type="submit" class="btn-primary">Add Vendor</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Stall</th><th>Description</th><th>Items</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          <% vendors.forEach(v => { %>
+          <tr>
+            <td><%= v.name %></td>
+            <td><%= v.stallNumber %></td>
+            <td><%= v.description || '—' %></td>
+            <td><%= v._count.menuItems %></td>
+            <td><span class="status-badge <%= v.isOpen ? 'status-completed' : 'status-cancelled' %>"><%= v.isOpen ? 'Open' : 'Closed' %></span></td>
+            <td>
+              <form action="/admin/vendors/<%= v.id %>/toggle" method="POST" style="display:inline">
+                <button type="submit" class="btn-ghost btn-xs"><%= v.isOpen ? 'Close' : 'Open' %></button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

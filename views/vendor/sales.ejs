@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>Sales Report</h1>
+      <p class="page-sub"><%= vendor.name %> · Stall <%= vendor.stallNumber %></p>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card">
+        <label>Total Revenue</label>
+        <span class="stat-value">₱<%= totalRevenue.toFixed(2) %></span>
+      </div>
+      <div class="stat-card">
+        <label>Menu Items Tracked</label>
+        <span class="stat-value"><%= salesData.length %></span>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h3>Top Items (Completed Orders)</h3>
+      <% if (salesData.length === 0) { %>
+        <p class="empty-state">No completed orders yet.</p>
+      <% } else { %>
+        <table class="data-table">
+          <thead>
+            <tr><th>Item</th><th>Units Sold</th><th>Revenue</th></tr>
+          </thead>
+          <tbody>
+            <% salesData.forEach(row => { %>
+            <tr>
+              <td><%= row.name %></td>
+              <td><%= row.units_sold %></td>
+              <td>₱<%= parseFloat(row.total_revenue).toFixed(2) %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

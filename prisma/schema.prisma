@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  VENDOR
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  orders    Order[]
+
+  @@map("users")
+}
+
+model Vendor {
+  id          Int        @id @default(autoincrement())
+  name        String
+  stallNumber String     @unique
+  description String?
+  isOpen      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  menuItems   MenuItem[]
+
+  @@map("vendors")
+}
+
+model MenuItem {
+  id            Int         @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Decimal     @db.Decimal(10, 2)
+  stockQuantity Int         @default(0)
+  isAvailable   Boolean     @default(true)
+  category      String?
+  vendorId      Int
+  vendor        Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  orderLines    OrderLine[]
+
+  @@map("menu_items")
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  studentId  Int
+  totalPrice Decimal     @db.Decimal(10, 2)
+  status     OrderStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  student    User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  orderLines OrderLine[]
+
+  @@map("orders")
+}
+
+model OrderLine {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  itemId     Int
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("order_lines")
+}

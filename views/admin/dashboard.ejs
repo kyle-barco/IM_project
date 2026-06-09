@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>Admin Dashboard</h1>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <div class="stat-cards">
+      <div class="stat-card">
+        <label>Total Orders</label>
+        <span class="stat-value"><%= totalOrders %></span>
+      </div>
+      <div class="stat-card">
+        <label>Revenue (Completed)</label>
+        <span class="stat-value">₱<%= totalRevenue.toFixed(2) %></span>
+      </div>
+      <div class="stat-card">
+        <label>Active Vendors</label>
+        <span class="stat-value"><%= vendors.filter(v => v.isOpen).length %></span>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h3>Top Selling Items</h3>
+      <% if (topItems.length === 0) { %>
+        <p class="empty-state">No completed orders yet.</p>
+      <% } else { %>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Vendor</th><th>Units</th><th>Revenue</th></tr></thead>
+          <tbody>
+            <% topItems.forEach(row => { %>
+            <tr>
+              <td><%= row.name %></td>
+              <td><%= row.vendor %></td>
+              <td><%= row.units_sold %></td>
+              <td>₱<%= parseFloat(row.revenue).toFixed(2) %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <h3>Vendors Overview</h3>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Stall</th><th>Menu Items</th><th>Status</th></tr></thead>
+        <tbody>
+          <% vendors.forEach(v => { %>
+          <tr>
+            <td><%= v.name %></td>
+            <td><%= v.stallNumber %></td>
+            <td><%= v._count.menuItems %></td>
+            <td><span class="status-badge <%= v.isOpen ? 'status-completed' : 'status-cancelled' %>"><%= v.isOpen ? 'Open' : 'Closed' %></span></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

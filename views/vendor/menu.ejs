@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>Manage Menu</h1>
+      <p class="page-sub"><%= vendor.name %> · Stall <%= vendor.stallNumber %></p>
+    </div>
+    <%- include('../partials/flash') %>
+
+    <section class="panel">
+      <h3>Add New Item</h3>
+      <form action="/vendor/menu" method="POST" class="inline-form">
+        <div class="field"><label>Name</label><input type="text" name="name" required /></div>
+        <div class="field"><label>Description</label><input type="text" name="description" /></div>
+        <div class="field"><label>Price (₱)</label><input type="number" name="price" step="0.01" min="0" required /></div>
+        <div class="field"><label>Stock</label><input type="number" name="stockQuantity" min="0" value="10" required /></div>
+        <div class="field"><label>Category</label><input type="text" name="category" placeholder="e.g. Rice Meals" /></div>
+        <button type="submit" class="btn-primary">Add Item</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h3>Current Menu (<%= items.length %> items)</h3>
+      <% if (items.length === 0) { %><p class="empty-state">No items yet.</p><% } %>
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <% items.forEach(item => { %>
+          <tr class="<%= item.isAvailable ? '' : 'row-muted' %>">
+            <td><%= item.name %></td>
+            <td><%= item.category || '—' %></td>
+            <td>₱<%= parseFloat(item.price).toFixed(2) %></td>
+            <td>
+              <form action="/vendor/menu/<%= item.id %>/stock" method="POST" class="stock-form">
+                <input type="number" name="stockQuantity" value="<%= item.stockQuantity %>" min="0" class="stock-input" />
+                <button type="submit" class="btn-ghost btn-xs">Update</button>
+              </form>
+            </td>
+            <td><span class="status-badge <%= item.isAvailable ? 'status-completed' : 'status-cancelled' %>"><%= item.isAvailable ? 'Available' : 'Hidden' %></span></td>
+            <td>
+              <form action="/vendor/menu/<%= item.id %>/toggle" method="POST" style="display:inline">
+                <button type="submit" class="btn-ghost btn-xs"><%= item.isAvailable ? 'Hide' : 'Show' %></button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
