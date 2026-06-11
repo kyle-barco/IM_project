@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,9 +9,37 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: bytemarket_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - bytemarket_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bytemarket_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/bytemarket_db"
+      SESSION_SECRET: "bytemarket-super-secret-key-change-in-production"
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      # Hot-reload: mirror source changes without rebuilding
+      - ./src:/app/src
+      - ./views:/app/views
+      - ./prisma:/app/prisma
+      # Prevent host node_modules from overwriting container's
+      - /app/node_modules
     restart: unless-stopped
 
 volumes:

@@ -121,4 +121,32 @@ router.get('/orders/:id', async (req, res) => {
   res.render('student/receipt', { title: `Order #${order.id} – ByteMarket`, order });
 });
 
+// Browse external food menu from free API
+router.get('/api-menu', async (req, res) => {
+  const categories = [
+    'burgers', 'pizzas', 'best-foods', 'fried-chicken',
+    'drinks', 'desserts', 'ice-cream', 'sandwiches',
+    'steaks', 'bbqs', 'breads', 'chocolates', 'porks', 'sausages',
+  ];
+
+  try {
+    const results = await Promise.all(
+      categories.map(cat =>
+        fetch(`https://free-food-menus-api-two.vercel.app/${cat}`)
+          .then(r => r.json())
+          .then(items => ({ category: cat, items }))
+          .catch(() => ({ category: cat, items: [] }))
+      )
+    );
+
+    // Filter out empty categories
+    const menu = results.filter(c => c.items.length > 0);
+    res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu });
+  } catch (err) {
+    console.error(err);
+    req.flash('error', 'Failed to load menu. Please try again.');
+    res.redirect('/student/menu');
+  }
+});
+
 module.exports = router;
