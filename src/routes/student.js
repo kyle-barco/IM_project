@@ -4,17 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const { requireRole } = require('../middleware/auth');
 const prisma = require('../config/db');
 
-router.use(requireRole('STUDENT'));
-
-// Browse all vendors & menu
-router.get('/menu', async (req, res) => {
-  const vendors = await prisma.vendor.findMany({
-    where: { isOpen: true },
-    include: { menuItems: { where: { isAvailable: true, stockQuantity: { gt: 0 } } } },
-    orderBy: { stallNumber: 'asc' },
-  });
-  res.render('student/menu', { title: 'Food Court – ByteMarket', vendors });
-});
+router.use(requireRole('STUDENT', 'VENDOR'));
 
 // Cart page
 router.get('/cart', (req, res) => {
@@ -22,17 +12,84 @@ router.get('/cart', (req, res) => {
   res.render('student/cart', { title: 'Your Cart – ByteMarket', cart });
 });
 
+// Cart count (JSON) for live badge updates
+router.get('/cart/count', (req, res) => {
+  const cart = req.session.cart || [];
+  const count = cart.reduce((s, c) => s + c.quantity, 0);
+  res.json({ count });
+});
+
 // Add to cart (stores in session)
 router.post('/cart/add', async (req, res) => {
-  const { itemId, quantity } = req.body;
+  const { itemId, quantity, apiItem, name, price, vendorName, category, description } = req.body;
   const qty = parseInt(quantity) || 1;
+
+  // API menu items: create in local DB on-the-fly
+  if (apiItem === 'true') {
+    let apiVendor = await prisma.vendor.findFirst({
+      where: { name: 'International Food Court' }
+    });
+    if (!apiVendor) {
+      apiVendor = await prisma.vendor.create({
+        data: {
+          name: 'International Food Court',
+          stallNumber: 'API-001',
+          description: 'Global dishes from our API partners',
+          isOpen: true,
+        }
+      });
+    }
+
+    let menuItem = await prisma.menuItem.findFirst({
+      where: { name, vendorId: apiVendor.id }
+    });
+
+    if (!menuItem) {
+      menuItem = await prisma.menuItem.create({
+        data: {
+          name,
+          description: description || '',
+          price: parseFloat(price) || 0,
+          stockQuantity: 999,
+          isAvailable: true,
+          category: category || 'general',
+          vendorId: apiVendor.id,
+        },
+        include: { vendor: true }
+      });
+    } else {
+      await prisma.menuItem.update({
+        where: { id: menuItem.id },
+        data: { stockQuantity: 999 }
+      });
+    }
+
+    req.session.cart = req.session.cart || [];
+    const existing = req.session.cart.find(c => c.itemId === menuItem.id);
+    if (existing) {
+      existing.quantity += qty;
+    } else {
+      req.session.cart.push({
+        itemId: menuItem.id,
+        name: menuItem.name,
+        price: parseFloat(menuItem.price),
+        vendorName: vendorName || 'International Food Court',
+        vendorId: menuItem.vendorId,
+        quantity: qty,
+      });
+    }
+    req.flash('success', `${menuItem.name} added to cart.`);
+    return res.redirect('/student/api-menu');
+  }
+
+  // Normal flow: internal DB menu items
   const item = await prisma.menuItem.findUnique({
     where: { id: parseInt(itemId) },
     include: { vendor: true },
   });
   if (!item || item.stockQuantity < qty) {
     req.flash('error', 'Item unavailable or insufficient stock.');
-    return res.redirect('/student/menu');
+    return res.redirect('/student/api-menu');
   }
 
   req.session.cart = req.session.cart || [];
@@ -50,8 +107,10 @@ router.post('/cart/add', async (req, res) => {
     });
   }
   req.flash('success', `${item.name} added to cart.`);
-  res.redirect('/student/menu');
+  res.redirect('/student/api-menu');
 });
+
+// Remove from cart
 
 // Remove from cart
 router.post('/cart/remove', (req, res) => {
@@ -101,6 +160,17 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
+// Order count (JSON) for badge — active orders only
+router.get('/orders/count', async (req, res) => {
+  const count = await prisma.order.count({
+    where: {
+      studentId: req.session.user.id,
+      status: { in: ['PENDING', 'PREPARING', 'READY'] },
+    }
+  });
+  res.json({ count });
+});
+
 // Order history
 router.get('/orders', async (req, res) => {
   const orders = await prisma.order.findMany({
@@ -121,31 +191,78 @@ router.get('/orders/:id', async (req, res) => {
   res.render('student/receipt', { title: `Order #${order.id} – ByteMarket`, order });
 });
 
-// Browse external food menu from free API
-router.get('/api-menu', async (req, res) => {
-  const categories = [
-    'burgers', 'pizzas', 'best-foods', 'fried-chicken',
-    'drinks', 'desserts', 'ice-cream', 'sandwiches',
-    'steaks', 'bbqs', 'breads', 'chocolates', 'porks', 'sausages',
-  ];
+// ── API menu cache ──────────────────────────────────────────
+let menuCache = null;
+let menuCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+const FETCH_TIMEOUT = 5000;
+const BATCH_SIZE = 4;
 
+const CATEGORIES = [
+  'burgers', 'pizzas', 'best-foods', 'fried-chicken',
+  'drinks', 'desserts', 'ice-cream', 'sandwiches',
+  'steaks', 'bbqs', 'breads', 'chocolates', 'porks', 'sausages',
+];
+
+async function fetchCategory(cat) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
   try {
-    const results = await Promise.all(
-      categories.map(cat =>
-        fetch(`https://free-food-menus-api-two.vercel.app/${cat}`)
-          .then(r => r.json())
-          .then(items => ({ category: cat, items }))
-          .catch(() => ({ category: cat, items: [] }))
-      )
-    );
+    const res = await fetch(`https://free-food-menus-api-two.vercel.app/${cat}`, {
+      signal: controller.signal,
+    });
+    if (!res.ok) return { category: cat, items: [] };
+    const data = await res.json();
+    return { category: cat, items: Array.isArray(data) ? data : [] };
+  } catch {
+    return { category: cat, items: [] };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-    // Filter out empty categories
-    const menu = results.filter(c => c.items.length > 0);
-    res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu });
+async function fetchAllMenu() {
+  const results = [];
+  for (let i = 0; i < CATEGORIES.length; i += BATCH_SIZE) {
+    const batch = CATEGORIES.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(fetchCategory));
+    results.push(...batchResults);
+  }
+  return results.filter(c => c.items.length > 0);
+}
+
+// Browse external food menu from free API (cached)
+router.get('/api-menu', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!menuCache || now - menuCacheTime > CACHE_TTL) {
+      menuCache = await fetchAllMenu();
+      menuCacheTime = now;
+    }
+
+    // Load real stock from DB for API items that have been ordered
+    const apiVendor = await prisma.vendor.findFirst({
+      where: { name: 'International Food Court' },
+      include: { menuItems: true },
+    });
+    const stockMap = {};
+    if (apiVendor) {
+      apiVendor.menuItems.forEach(item => {
+        stockMap[item.name] = item.stockQuantity;
+      });
+    }
+
+    res.render('student/api-menu', {
+      title: 'Food Menu – ByteMarket',
+      menu: menuCache,
+      stockMap,
+    });
   } catch (err) {
     console.error(err);
-    req.flash('error', 'Failed to load menu. Please try again.');
-    res.redirect('/student/menu');
+    if (!menuCache) {
+      return res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: [], stockMap: {} });
+    }
+    res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: menuCache, stockMap: {} });
   }
 });
 

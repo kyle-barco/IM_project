@@ -87,6 +87,24 @@ a:hover { text-decoration: underline; }
 
 .nav-cart { position: relative; }
 
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 0 4px;
+  box-shadow: 0 0 0 2px #0f1117;
+}
+
 /* ── LAYOUT ── */
 .container {
   max-width: 1100px;
@@ -457,6 +475,8 @@ input:focus { outline: none; border-color: var(--accent); }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface2); }
 .row-muted td { opacity: 0.5; }
+.row-api td { border-left: 3px solid #f5a623; }
+.row-api td:first-child::after { content: ' (API)'; font-size: .7rem; color: #f5a623; font-weight: 600; }
 
 /* ── STAT CARDS ── */
 .stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }

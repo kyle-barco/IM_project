@@ -27,12 +27,13 @@
       <% } else { %>
         <table class="data-table">
           <thead>
-            <tr><th>Item</th><th>Units Sold</th><th>Revenue</th></tr>
+            <tr><th>Item</th><th>Vendor</th><th>Units Sold</th><th>Revenue</th></tr>
           </thead>
           <tbody>
             <% salesData.forEach(row => { %>
             <tr>
               <td><%= row.name %></td>
+              <td><%= row.vendor_name %></td>
               <td><%= row.units_sold %></td>
               <td>₱<%= parseFloat(row.total_revenue).toFixed(2) %></td>
             </tr>

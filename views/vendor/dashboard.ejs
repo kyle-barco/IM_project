@@ -3,7 +3,7 @@
 <head><%- include('../partials/head') %></head>
 <body>
   <%- include('../partials/navbar') %>
-  <main class="container">
+  <main class="container" data-auto-refresh>
     <div class="page-header">
       <div>
         <h1>Order Queue</h1>
@@ -14,7 +14,7 @@
     <%- include('../partials/flash') %>
 
     <% if (orders.length === 0) { %>
-      <div class="empty-cart"><p>No active orders right now. 🎉</p></div>
+      <div class="empty-cart"><p>No active orders right now.</p></div>
     <% } else { %>
       <div class="queue-grid">
         <% orders.forEach(order => { %>
@@ -24,6 +24,11 @@
             <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span>
           </div>
           <p class="queue-student"><%= order.student %></p>
+          <ul class="queue-items">
+            <% (order.items || []).forEach(item => { %>
+              <li><%= item.qty %>× <%= item.name %> <em>(<%= item.vendor %>)</em></li>
+            <% }) %>
+          </ul>
           <p class="queue-subtotal">₱<%= parseFloat(order.subtotal).toFixed(2) %></p>
           <p class="queue-time"><%= new Date(order.createdAt).toLocaleTimeString() %></p>
           <form action="/vendor/orders/<%= order.id %>/status" method="POST" class="queue-actions">
@@ -41,5 +46,48 @@
       </div>
     <% } %>
   </main>
+<script>
+  document.querySelectorAll('.queue-actions').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const btn = e.submitter;
+      const action = this.action;
+      const data = new URLSearchParams();
+      if (btn && btn.name) data.set(btn.name, btn.value);
+      fetch(action, { method: 'POST', body: data, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+        .then(() => {
+          const card = this.closest('.queue-card');
+          if (!card) return;
+          const newStatus = btn.value;
+          if (newStatus === 'COMPLETED') {
+            card.remove();
+          } else {
+            card.querySelector('.status-badge').textContent = newStatus;
+            card.querySelector('.status-badge').className = 'status-badge status-' + newStatus.toLowerCase();
+            card.className = 'queue-card status-card-' + newStatus.toLowerCase();
+            const actions = this;
+            if (newStatus === 'CANCELLED') {
+              actions.innerHTML = '';
+            } else if (newStatus === 'PREPARING') {
+              actions.innerHTML = '<button name="status" value="READY" class="btn-primary btn-sm">Mark Ready</button>';
+            } else if (newStatus === 'READY') {
+              actions.innerHTML = '<button name="status" value="COMPLETED" class="btn-success btn-sm">Complete</button>';
+            }
+          }
+          const remaining = document.querySelectorAll('.queue-card').length;
+          const badge = document.getElementById('queue-badge');
+          if (badge) {
+            badge.textContent = remaining;
+            badge.style.display = remaining > 0 ? 'inline-block' : 'none';
+          }
+          if (remaining === 0) {
+            const el = document.querySelector('.queue-grid');
+            if (el) el.outerHTML = '<div class="empty-cart"><p>No active orders right now.</p></div>';
+          }
+        })
+        .catch(() => location.reload());
+    });
+  });
+</script>
 </body>
 </html>

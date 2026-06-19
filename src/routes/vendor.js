@@ -12,22 +12,54 @@ async function getVendor(req) {
   return await prisma.vendor.findFirst({ orderBy: { id: 'asc' } });
 }
 
+// Active order count (JSON) for badge
+router.get('/orders/count', async (req, res) => {
+  const vendor = await getVendor(req);
+  const apiVendor = await prisma.vendor.findFirst({
+    where: { name: 'International Food Court' }
+  });
+  const vendorIds = [vendor.id];
+  if (apiVendor) vendorIds.push(apiVendor.id);
+
+  const count = await prisma.order.count({
+    where: {
+      status: { in: ['PENDING', 'PREPARING', 'READY'] },
+      orderLines: {
+        some: {
+          menuItem: {
+            vendorId: { in: vendorIds }
+          }
+        }
+      }
+    }
+  });
+  res.json({ count });
+});
+
 // Dashboard: live order queue
 router.get('/dashboard', async (req, res) => {
   const vendor = await getVendor(req);
+  const apiVendor = await prisma.vendor.findFirst({
+    where: { name: 'International Food Court' }
+  });
+  const vendorIds = [vendor.id];
+  if (apiVendor) vendorIds.push(apiVendor.id);
+
   const orders = await prisma.$queryRaw`
     SELECT o.id, o.status, o."createdAt", u.username AS student,
-           SUM(ol.quantity * ol."unitPrice") AS subtotal
+           SUM(ol.quantity * ol."unitPrice") AS subtotal,
+           JSON_AGG(JSON_BUILD_OBJECT('name', mi.name, 'qty', ol.quantity, 'vendor', v.name)) AS items
     FROM orders o
     JOIN users u ON o."studentId" = u.id
     JOIN order_lines ol ON ol."orderId" = o.id
     JOIN menu_items mi ON ol."itemId" = mi.id
-    WHERE mi."vendorId" = ${vendor.id}
+    JOIN vendors v ON mi."vendorId" = v.id
+    WHERE mi."vendorId" = ANY(${vendorIds}::int[])
       AND o.status IN ('PENDING','PREPARING','READY')
     GROUP BY o.id, u.username
     ORDER BY o."createdAt" ASC
   `;
-  res.render('vendor/dashboard', { title: 'Order Queue – ByteMarket', vendor, orders });
+  res.render('vendor/dashboard', { title: 'Order Queue – ByteMarket', vendor, orders, apiVendor });
 });
 
 // Update order status
@@ -41,8 +73,14 @@ router.post('/orders/:id/status', async (req, res) => {
 // Menu management
 router.get('/menu', async (req, res) => {
   const vendor = await getVendor(req);
-  const items = await prisma.menuItem.findMany({ where: { vendorId: vendor.id }, orderBy: { category: 'asc' } });
-  res.render('vendor/menu', { title: 'Manage Menu – ByteMarket', vendor, items });
+  const apiVendor = await prisma.vendor.findFirst({
+    where: { name: 'International Food Court' }
+  });
+  const items = await prisma.menuItem.findMany({
+    where: { vendorId: { in: [vendor.id, ...(apiVendor ? [apiVendor.id] : [])] } },
+    orderBy: [{ vendorId: 'asc' }, { category: 'asc' }],
+  });
+  res.render('vendor/menu', { title: 'Manage Menu – ByteMarket', vendor, items, apiVendor });
 });
 
 // Add menu item
@@ -74,15 +112,22 @@ router.post('/menu/:id/toggle', async (req, res) => {
 // Sales report
 router.get('/sales', async (req, res) => {
   const vendor = await getVendor(req);
+  const apiVendor = await prisma.vendor.findFirst({
+    where: { name: 'International Food Court' }
+  });
+  const vendorIds = [vendor.id];
+  if (apiVendor) vendorIds.push(apiVendor.id);
+
   const salesData = await prisma.$queryRaw`
-    SELECT mi.name, SUM(ol.quantity) AS units_sold,
+    SELECT mi.name, v.name AS vendor_name, SUM(ol.quantity) AS units_sold,
            SUM(ol.quantity * ol."unitPrice") AS total_revenue
     FROM order_lines ol
     JOIN menu_items mi ON ol."itemId" = mi.id
     JOIN orders o ON ol."orderId" = o.id
-    WHERE mi."vendorId" = ${vendor.id}
+    JOIN vendors v ON mi."vendorId" = v.id
+    WHERE mi."vendorId" = ANY(${vendorIds}::int[])
       AND o.status = 'COMPLETED'
-    GROUP BY mi.name
+    GROUP BY mi.name, v.name
     ORDER BY total_revenue DESC
   `;
   const totalRevenue = salesData.reduce((s, r) => s + parseFloat(r.total_revenue || 0), 0);

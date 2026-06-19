@@ -8,7 +8,7 @@ const prisma = require('../config/db')
 router.get('/', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   const role = req.session.user.role;
-  if (role === 'STUDENT') return res.redirect('/student/menu');
+  if (role === 'STUDENT') return res.redirect('/student/api-menu');
   if (role === 'VENDOR') return res.redirect('/vendor/dashboard');
   if (role === 'ADMIN')  return res.redirect('/admin/dashboard');
   res.redirect('/login');

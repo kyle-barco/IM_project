@@ -31,7 +31,7 @@
         </thead>
         <tbody>
           <% items.forEach(item => { %>
-          <tr class="<%= item.isAvailable ? '' : 'row-muted' %>">
+          <tr class="<%= item.isAvailable ? '' : 'row-muted' %> <%= item.vendorId === (apiVendor && apiVendor.id) ? 'row-api' : '' %>">
             <td><%= item.name %></td>
             <td><%= item.category || '—' %></td>
             <td>₱<%= parseFloat(item.price).toFixed(2) %></td>

@@ -30,6 +30,8 @@ app.use(flash());
 // Global locals for all views
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
+  const cart = req.session.cart || [];
+  res.locals.cartCount = cart.reduce((s, c) => s + c.quantity, 0);
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   next();
