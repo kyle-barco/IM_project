@@ -4,6 +4,7 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
 const path = require('path');
+const http = require('http');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +38,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check – used by Render to prevent free-tier sleeping
+app.get('/health', (req, res) => {
+  const db = require('@prisma/client');
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Routes
 app.use('/', require('./routes/auth'));
 app.use('/student', require('./routes/student'));
@@ -48,7 +55,21 @@ app.use((req, res) => {
   res.status(404).render('404', { title: '404 – Page Not Found' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n🍱 ByteMarket running at http://localhost:${PORT}`);
   console.log(`   Logins: admin/admin123 | student1/student123 | vendor1/vendor123\n`);
 });
+
+// Self-ping every 10 minutes to keep Render free tier awake
+const SELF_PING_INTERVAL = 10 * 60 * 1000; // 10 minutes
+if (process.env.RENDER_EXTERNAL_URL) {
+  const pingUrl = process.env.RENDER_EXTERNAL_URL;
+  console.log(`   Self-ping enabled – will ping ${pingUrl} every 10 min to prevent sleeping\n`);
+  setInterval(() => {
+    http.get(`${pingUrl}/health`, (res) => {
+      console.log(`[keepalive] pinged self – ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.error(`[keepalive] ping failed – ${err.message}`);
+    });
+  }, SELF_PING_INTERVAL);
+}
