@@ -4,15 +4,20 @@
 <body>
   <%- include('../partials/navbar') %>
   <main class="container container-narrow">
+    <div class="page-header">
+      <h1>Order #<%= order.id %></h1>
+      <a href="/admin/orders" class="btn-ghost">Back</a>
+    </div>
+    <%- include('../partials/flash') %>
+
     <div class="receipt">
       <div class="receipt-header">
-        <div class="receipt-brand"><span class="brand-byte">Byte</span><span class="brand-market">Market</span></div>
-        <p class="receipt-sub">Self-pickup at the food court counter</p>
         <span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span>
       </div>
 
       <div class="receipt-meta">
         <div><label>Order</label><span>#<%= order.id %></span></div>
+        <div><label>Student</label><span><%= order.student.username %></span></div>
         <div><label>Date</label><span><%= new Date(order.createdAt).toLocaleString() %></span></div>
       </div>
 
@@ -42,14 +47,21 @@
         <span>₱<%= parseFloat(order.totalPrice).toFixed(2) %></span>
       </div>
 
-      <div class="receipt-actions">
-        <a href="/student/orders" class="btn-ghost">Back to Orders</a>
-        <a href="/student/api-menu" class="btn-primary">Order Again</a>
-        <% if (order.status === 'PENDING') { %>
-          <form action="/student/orders/<%= order.id %>/cancel" method="POST" style="display:inline" onsubmit="return confirm('Cancel this order?')">
-            <button type="submit" class="btn-danger">Cancel Order</button>
-          </form>
-        <% } %>
+      <div class="receipt-actions" style="margin-top:1.5rem;">
+        <form action="/admin/orders/<%= order.id %>/status" method="POST" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <% if (['PENDING','PREPARING','READY'].includes(order.status)) { %>
+            <% if (order.status === 'PENDING') { %>
+              <button name="status" value="PREPARING" class="btn-primary btn-sm">Start Preparing</button>
+            <% } %>
+            <% if (order.status === 'PREPARING') { %>
+              <button name="status" value="READY" class="btn-primary btn-sm">Mark Ready</button>
+            <% } %>
+            <% if (order.status === 'READY') { %>
+              <button name="status" value="COMPLETED" class="btn-success btn-sm">Complete</button>
+            <% } %>
+            <button name="status" value="CANCELLED" class="btn-danger btn-sm">Cancel Order</button>
+          <% } %>
+        </form>
       </div>
     </div>
   </main>

@@ -191,6 +191,17 @@ router.get('/orders/:id', async (req, res) => {
   res.render('student/receipt', { title: `Order #${order.id} – ByteMarket`, order });
 });
 
+// Cancel a pending order
+router.post('/orders/:id/cancel', async (req, res) => {
+  const order = await prisma.order.findFirst({
+    where: { id: parseInt(req.params.id), studentId: req.session.user.id, status: 'PENDING' },
+  });
+  if (!order) { req.flash('error', 'Order not found or cannot be cancelled.'); return res.redirect('/student/orders'); }
+  await prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+  req.flash('success', `Order #${order.id} cancelled.`);
+  res.redirect('/student/orders');
+});
+
 // ── API menu cache ──────────────────────────────────────────
 let menuCache = null;
 let menuCacheTime = 0;

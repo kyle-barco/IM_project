@@ -5,9 +5,10 @@
   <%- include('../partials/navbar') %>
   <main class="container">
     <div class="page-header"><h1>All Orders</h1></div>
+    <%- include('../partials/flash') %>
     <section class="panel">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Student</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+        <thead><tr><th>#</th><th>Student</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
         <tbody>
           <% orders.forEach(order => { %>
           <tr>
@@ -16,6 +17,19 @@
             <td>₱<%= parseFloat(order.totalPrice).toFixed(2) %></td>
             <td><span class="status-badge status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td>
             <td><%= new Date(order.createdAt).toLocaleString() %></td>
+            <td>
+              <a href="/admin/orders/<%= order.id %>" class="btn-ghost btn-xs">View</a>
+              <form action="/admin/orders/<%= order.id %>/status" method="POST" style="display:inline-flex;gap:0.25rem;">
+                <% if (order.status === 'PENDING') { %>
+                  <button name="status" value="PREPARING" class="btn-primary btn-xs">Prepare</button>
+                  <button name="status" value="CANCELLED" class="btn-danger btn-xs">Cancel</button>
+                <% } else if (order.status === 'PREPARING') { %>
+                  <button name="status" value="READY" class="btn-primary btn-xs">Ready</button>
+                <% } else if (order.status === 'READY') { %>
+                  <button name="status" value="COMPLETED" class="btn-success btn-xs">Complete</button>
+                <% } %>
+              </form>
+            </td>
           </tr>
           <% }) %>
         </tbody>

@@ -5,9 +5,10 @@
   <%- include('../partials/navbar') %>
   <main class="container">
     <div class="page-header"><h1>Users</h1></div>
+    <%- include('../partials/flash') %>
     <section class="panel">
       <table class="data-table">
-        <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Joined</th></tr></thead>
+        <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead>
         <tbody>
           <% users.forEach(u => { %>
           <tr>
@@ -15,11 +16,47 @@
             <td><%= u.username %></td>
             <td><span class="role-badge role-<%= u.role.toLowerCase() %>"><%= u.role %></span></td>
             <td><%= new Date(u.createdAt).toLocaleDateString() %></td>
+            <td>
+              <button class="btn-ghost btn-xs" onclick="editUser(<%= u.id %>, '<%= u.username.replace(/'/g, "\\'") %>', '<%= u.role %>')">Edit</button>
+              <form action="/admin/users/<%= u.id %>/delete" method="POST" style="display:inline" onsubmit="return confirm('Delete user <%= u.username %>?')">
+                <button type="submit" class="btn-danger btn-xs">Delete</button>
+              </form>
+            </td>
           </tr>
           <% }) %>
         </tbody>
       </table>
     </section>
   </main>
+
+  <div id="user-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem;max-width:400px;width:90%;">
+      <h3 style="margin-bottom:1rem;">Edit User</h3>
+      <form id="user-edit-form" method="POST" style="display:flex;flex-direction:column;gap:.75rem;">
+        <div class="field"><label>Username</label><input type="text" name="username" id="edit-username" required /></div>
+        <div class="field">
+          <label>Role</label>
+          <select name="role" id="edit-role" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem 0.85rem;color:var(--text);font-family:var(--font);font-size:0.9rem;width:100%;">
+            <option value="STUDENT">Student</option>
+            <option value="VENDOR">Vendor</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-ghost" onclick="document.getElementById('user-edit-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function editUser(id, username, role) {
+      document.getElementById('edit-username').value = username;
+      document.getElementById('edit-role').value = role;
+      document.getElementById('user-edit-form').action = '/admin/users/' + id + '/edit';
+      document.getElementById('user-edit-modal').style.display = 'flex';
+    }
+  </script>
 </body>
 </html>

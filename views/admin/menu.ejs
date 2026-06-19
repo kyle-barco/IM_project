@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><%- include('../partials/head') %></head>
+<body>
+  <%- include('../partials/navbar') %>
+  <main class="container">
+    <div class="page-header"><h1>Manage Menu Items</h1></div>
+    <%- include('../partials/flash') %>
+
+    <section class="panel">
+      <h3>Add Menu Item</h3>
+      <form action="/admin/menu" method="POST" class="inline-form">
+        <div class="field"><label>Name</label><input type="text" name="name" required /></div>
+        <div class="field"><label>Price</label><input type="number" step="0.01" name="price" required /></div>
+        <div class="field"><label>Stock</label><input type="number" name="stockQuantity" value="0" /></div>
+        <div class="field"><label>Category</label><input type="text" name="category" /></div>
+        <div class="field">
+          <label>Vendor</label>
+          <select name="vendorId" required style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem 0.85rem;color:var(--text);font-family:var(--font);font-size:0.9rem;">
+            <% vendors.forEach(v => { %>
+            <option value="<%= v.id %>"><%= v.name %> (<%= v.stallNumber %>)</option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Description</label><input type="text" name="description" /></div>
+        <button type="submit" class="btn-primary">Add Item</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Vendor</th><th>Price</th><th>Stock</th><th>Category</th><th>Available</th><th>Actions</th></tr></thead>
+        <tbody>
+          <% items.forEach(item => { %>
+          <tr class="<%= item.vendor.name === 'International Food Court' ? 'row-api' : '' %>">
+            <td><%= item.id %></td>
+            <td><%= item.name %></td>
+            <td><%= item.vendor.name %></td>
+            <td>₱<%= parseFloat(item.price).toFixed(2) %></td>
+            <td><%= item.stockQuantity %></td>
+            <td><%= item.category || '—' %></td>
+            <td><span class="status-badge <%= item.isAvailable ? 'status-completed' : 'status-cancelled' %>"><%= item.isAvailable ? 'Yes' : 'No' %></span></td>
+            <td>
+              <form action="/admin/menu/<%= item.id %>/delete" method="POST" style="display:inline" onsubmit="return confirm('Delete <%= item.name %>?')">
+                <button type="submit" class="btn-danger btn-xs">Delete</button>
+              </form>
+              <button class="btn-ghost btn-xs" onclick="editMenu(<%= item.id %>, '<%= item.name.replace(/'/g, "\\'") %>', '<%= item.description ? item.description.replace(/'/g, "\\'") : '' %>', <%= item.price %>, <%= item.stockQuantity %>, '<%= item.category || '' %>', <%= item.vendorId %>)">Edit</button>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem;max-width:500px;width:90%;">
+      <h3 style="margin-bottom:1rem;">Edit Menu Item</h3>
+      <form id="edit-form" method="POST" style="display:flex;flex-direction:column;gap:.75rem;">
+        <input type="hidden" name="_method" value="POST" />
+        <div class="field"><label>Name</label><input type="text" name="name" id="edit-name" required /></div>
+        <div class="field"><label>Price</label><input type="number" step="0.01" name="price" id="edit-price" required /></div>
+        <div class="field"><label>Stock</label><input type="number" name="stockQuantity" id="edit-stock" /></div>
+        <div class="field"><label>Category</label><input type="text" name="category" id="edit-category" /></div>
+        <div class="field">
+          <label>Vendor</label>
+          <select name="vendorId" id="edit-vendor" required style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem 0.85rem;color:var(--text);font-family:var(--font);font-size:0.9rem;width:100%;">
+            <% vendors.forEach(v => { %>
+            <option value="<%= v.id %>"><%= v.name %> (<%= v.stallNumber %>)</option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Description</label><input type="text" name="description" id="edit-desc" /></div>
+        <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-ghost" onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function editMenu(id, name, desc, price, stock, category, vendorId) {
+      document.getElementById('edit-name').value = name;
+      document.getElementById('edit-price').value = price;
+      document.getElementById('edit-stock').value = stock;
+      document.getElementById('edit-category').value = category;
+      document.getElementById('edit-desc').value = desc;
+      document.getElementById('edit-vendor').value = vendorId;
+      document.getElementById('edit-form').action = '/admin/menu/' + id + '/edit';
+      document.getElementById('edit-modal').style.display = 'flex';
+    }
+  </script>
+</body>
+</html>

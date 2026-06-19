@@ -33,7 +33,14 @@
               <span class="order-line-item"><%= line.quantity %>× <%= line.menuItem.name %> <em>(<%= line.menuItem.vendor.name %>)</em></span>
             <% }) %>
           </div>
-          <a href="/student/orders/<%= order.id %>" class="btn-ghost btn-sm">View Receipt</a>
+          <div style="display:flex;gap:0.5rem;">
+            <a href="/student/orders/<%= order.id %>" class="btn-ghost btn-sm">View Receipt</a>
+            <% if (order.status === 'PENDING') { %>
+              <form action="/student/orders/<%= order.id %>/cancel" method="POST" style="display:inline" onsubmit="return confirm('Cancel this order?')">
+                <button type="submit" class="btn-danger btn-sm">Cancel</button>
+              </form>
+            <% } %>
+          </div>
         </div>
         <% }) %>
       </div>
