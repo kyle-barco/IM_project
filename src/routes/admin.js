@@ -64,7 +64,9 @@ router.get('/menu', async (req, res) => {
     orderBy: [{ vendorId: 'asc' }, { category: 'asc' }],
   });
   const vendors = await prisma.vendor.findMany({ orderBy: { name: 'asc' } });
-  res.render('admin/menu', { title: 'Manage Menu – ByteMarket', items, vendors });
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } }, select: { id: true } });
+  const apiVendorIds = new Set(apiVendors.map(v => v.id));
+  res.render('admin/menu', { title: 'Manage Menu – ByteMarket', items, vendors, apiVendorIds });
 });
 
 router.post('/menu', async (req, res) => {

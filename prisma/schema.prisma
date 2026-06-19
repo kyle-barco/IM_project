@@ -25,6 +25,8 @@ model User {
   username  String   @unique
   password  String
   role      Role     @default(STUDENT)
+  vendorId  Int?     @unique
+  vendor    Vendor?  @relation(fields: [vendorId], references: [id])
   createdAt DateTime @default(now())
   orders    Order[]
 
@@ -38,6 +40,7 @@ model Vendor {
   description String?
   isOpen      Boolean    @default(true)
   createdAt   DateTime   @default(now())
+  user        User?
   menuItems   MenuItem[]
 
   @@map("vendors")

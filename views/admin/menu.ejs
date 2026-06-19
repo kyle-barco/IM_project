@@ -32,7 +32,7 @@
         <thead><tr><th>ID</th><th>Name</th><th>Vendor</th><th>Price</th><th>Stock</th><th>Category</th><th>Available</th><th>Actions</th></tr></thead>
         <tbody>
           <% items.forEach(item => { %>
-          <tr class="<%= item.vendor.name === 'International Food Court' ? 'row-api' : '' %>">
+          <tr class="<%= apiVendorIds.has(item.vendorId) ? 'row-api' : '' %>">
             <td><%= item.id %></td>
             <td><%= item.name %></td>
             <td><%= item.vendor.name %></td>

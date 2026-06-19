@@ -6,6 +6,37 @@ const prisma = require('../config/db');
 
 router.use(requireRole('STUDENT', 'VENDOR'));
 
+const VENDOR_MAP = {
+  burgers:       'Burger Station',
+  pizzas:        'Pizza Corner',
+  'best-foods':  'Best Bites',
+  'fried-chicken': 'Crispy Chick',
+  drinks:        'Sip & Go',
+  desserts:      'Sweet Spot',
+  'ice-cream':   'Chill Zone',
+  sandwiches:    'Sandwich Hub',
+  steaks:        'Grill House',
+  bbqs:          'BBQ Pit',
+  breads:        'The Bakery',
+  chocolates:    'Choco World',
+  porks:         'Pork Palace',
+  sausages:      'Sausage Co.',
+};
+
+// Regroup category-based sections into vendor-based sections
+function groupByVendor(categorySections) {
+  const byVendor = {};
+  categorySections.forEach(({ category, items }) => {
+    items.forEach(item => {
+      item._category = category;
+      const vName = item._vendorName || VENDOR_MAP[category] || category;
+      if (!byVendor[vName]) byVendor[vName] = { vendorName: vName, items: [] };
+      byVendor[vName].items.push(item);
+    });
+  });
+  return Object.values(byVendor);
+}
+
 // Cart page
 router.get('/cart', (req, res) => {
   const cart = req.session.cart || [];
@@ -26,19 +57,19 @@ router.post('/cart/add', async (req, res) => {
 
   // API menu items: create in local DB on-the-fly
   if (apiItem === 'true') {
-    let apiVendor = await prisma.vendor.findFirst({
-      where: { name: 'International Food Court' }
+    const vendorDisplayName = vendorName || VENDOR_MAP[category] || 'International Food Court';
+    const stallCode = vendorDisplayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const apiVendor = await prisma.vendor.upsert({
+      where: { stallNumber: `API-${stallCode}` },
+      create: {
+        name: vendorDisplayName,
+        stallNumber: `API-${stallCode}`,
+        description: `${vendorDisplayName} – dishes from our global menu`,
+        isOpen: true,
+      },
+      update: { name: vendorDisplayName },
     });
-    if (!apiVendor) {
-      apiVendor = await prisma.vendor.create({
-        data: {
-          name: 'International Food Court',
-          stallNumber: 'API-001',
-          description: 'Global dishes from our API partners',
-          isOpen: true,
-        }
-      });
-    }
 
     let menuItem = await prisma.menuItem.findFirst({
       where: { name, vendorId: apiVendor.id }
@@ -73,7 +104,7 @@ router.post('/cart/add', async (req, res) => {
         itemId: menuItem.id,
         name: menuItem.name,
         price: parseFloat(menuItem.price),
-        vendorName: vendorName || 'International Food Court',
+        vendorName: vendorDisplayName,
         vendorId: menuItem.vendorId,
         quantity: qty,
       });
@@ -215,6 +246,16 @@ const CATEGORIES = [
   'steaks', 'bbqs', 'breads', 'chocolates', 'porks', 'sausages',
 ];
 
+// Local DB categories merged into the menu view (kebab-case key → DB category name)
+const LOCAL_CATEGORIES = {
+  'rice-meals': 'Rice Meals',
+  soups: 'Soups',
+  silog: 'Silog',
+  'milk-tea': 'Milk Tea',
+  juices: 'Juices',
+  coffee: 'Coffee',
+};
+
 async function fetchCategory(cat) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
@@ -242,7 +283,7 @@ async function fetchAllMenu() {
   return results.filter(c => c.items.length > 0);
 }
 
-// Browse external food menu from free API (cached)
+// Browse external food menu from free API (cached), merged with local DB items
 router.get('/api-menu', async (req, res) => {
   try {
     const now = Date.now();
@@ -251,21 +292,50 @@ router.get('/api-menu', async (req, res) => {
       menuCacheTime = now;
     }
 
-    // Load real stock from DB for API items that have been ordered
-    const apiVendor = await prisma.vendor.findFirst({
-      where: { name: 'International Food Court' },
+    // Load real stock from DB for API items across all API vendors
+    const apiVendors = await prisma.vendor.findMany({
+      where: { stallNumber: { startsWith: 'API-' } },
       include: { menuItems: true },
     });
     const stockMap = {};
-    if (apiVendor) {
-      apiVendor.menuItems.forEach(item => {
+    apiVendors.forEach(v => {
+      v.menuItems.forEach(item => {
         stockMap[item.name] = item.stockQuantity;
       });
-    }
+    });
+
+    // Fetch local DB items for the LOCAL_CATEGORIES and append as menu sections
+    const localCatNames = Object.values(LOCAL_CATEGORIES);
+    const localItems = await prisma.menuItem.findMany({
+      where: { category: { in: localCatNames }, isAvailable: true },
+      include: { vendor: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+
+    // Group by kebab key, deduplicating by name (keeps first occurrence)
+    const catKeyToCategory = Object.entries(LOCAL_CATEGORIES);
+    const localSections = catKeyToCategory.map(([key, dbCat]) => {
+      const seen = new Set();
+      const items = localItems
+        .filter(i => i.category === dbCat && !seen.has(i.name) && seen.add(i.name))
+        .map(i => ({
+          _dbId: i.id,
+          name: i.name,
+          price: parseFloat(i.price).toString(),
+          dsc: i.description || '',
+          img: '',
+          rate: '4.5',
+          _vendorName: i.vendor.name,
+          _stock: i.stockQuantity,
+        }));
+      return { category: key, items };
+    }).filter(s => s.items.length > 0);
+
+    const menu = groupByVendor([...menuCache, ...localSections]);
 
     res.render('student/api-menu', {
       title: 'Food Menu – ByteMarket',
-      menu: menuCache,
+      menu,
       stockMap,
     });
   } catch (err) {
@@ -273,7 +343,25 @@ router.get('/api-menu', async (req, res) => {
     if (!menuCache) {
       return res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: [], stockMap: {} });
     }
-    res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: menuCache, stockMap: {} });
+    // Still merge local items even on API failure
+    try {
+      const localCatNames = Object.values(LOCAL_CATEGORIES);
+      const localItems = await prisma.menuItem.findMany({
+        where: { category: { in: localCatNames }, isAvailable: true },
+        include: { vendor: true },
+      });
+      const localSections = Object.entries(LOCAL_CATEGORIES).map(([key, dbCat]) => {
+        const seen = new Set();
+        const items = localItems.filter(i => i.category === dbCat && !seen.has(i.name) && seen.add(i.name)).map(i => ({
+          _dbId: i.id, name: i.name, price: parseFloat(i.price).toString(),
+          dsc: i.description || '', img: '', rate: '4.5', _vendorName: i.vendor.name, _stock: i.stockQuantity,
+        }));
+        return { category: key, items };
+      }).filter(s => s.items.length > 0);
+      return res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: groupByVendor(localSections), stockMap: {} });
+    } catch {
+      res.render('student/api-menu', { title: 'Food Menu – ByteMarket', menu: groupByVendor(menuCache), stockMap: {} });
+    }
   }
 });
 

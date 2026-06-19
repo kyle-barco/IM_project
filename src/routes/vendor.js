@@ -8,18 +8,17 @@ router.use(requireRole('VENDOR'));
 
 // For demo: vendor sees stall A1
 async function getVendor(req) {
-  // In production, link users to vendors via a vendorId on the User model
+  if (req.session.user.vendorId) {
+    return await prisma.vendor.findUnique({ where: { id: req.session.user.vendorId } });
+  }
   return await prisma.vendor.findFirst({ orderBy: { id: 'asc' } });
 }
 
 // Active order count (JSON) for badge
 router.get('/orders/count', async (req, res) => {
   const vendor = await getVendor(req);
-  const apiVendor = await prisma.vendor.findFirst({
-    where: { name: 'International Food Court' }
-  });
-  const vendorIds = [vendor.id];
-  if (apiVendor) vendorIds.push(apiVendor.id);
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } } });
+  const vendorIds = [vendor.id, ...apiVendors.map(v => v.id)];
 
   const count = await prisma.order.count({
     where: {
@@ -39,11 +38,8 @@ router.get('/orders/count', async (req, res) => {
 // Dashboard: live order queue
 router.get('/dashboard', async (req, res) => {
   const vendor = await getVendor(req);
-  const apiVendor = await prisma.vendor.findFirst({
-    where: { name: 'International Food Court' }
-  });
-  const vendorIds = [vendor.id];
-  if (apiVendor) vendorIds.push(apiVendor.id);
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } } });
+  const vendorIds = [vendor.id, ...apiVendors.map(v => v.id)];
 
   const orders = await prisma.$queryRaw`
     SELECT o.id, o.status, o."createdAt", u.username AS student,
@@ -59,7 +55,30 @@ router.get('/dashboard', async (req, res) => {
     GROUP BY o.id, u.username
     ORDER BY o."createdAt" ASC
   `;
-  res.render('vendor/dashboard', { title: 'Order Queue – ByteMarket', vendor, orders, apiVendor });
+  res.render('vendor/dashboard', { title: 'Order Queue – ByteMarket', vendor, orders });
+});
+
+// Dashboard JSON data for auto-refresh
+router.get('/dashboard/data', async (req, res) => {
+  const vendor = await getVendor(req);
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } } });
+  const vendorIds = [vendor.id, ...apiVendors.map(v => v.id)];
+
+  const orders = await prisma.$queryRaw`
+    SELECT o.id, o.status, o."createdAt", u.username AS student,
+           SUM(ol.quantity * ol."unitPrice") AS subtotal,
+           JSON_AGG(JSON_BUILD_OBJECT('name', mi.name, 'qty', ol.quantity, 'vendor', v.name)) AS items
+    FROM orders o
+    JOIN users u ON o."studentId" = u.id
+    JOIN order_lines ol ON ol."orderId" = o.id
+    JOIN menu_items mi ON ol."itemId" = mi.id
+    JOIN vendors v ON mi."vendorId" = v.id
+    WHERE mi."vendorId" = ANY(${vendorIds}::int[])
+      AND o.status IN ('PENDING','PREPARING','READY')
+    GROUP BY o.id, u.username
+    ORDER BY o."createdAt" ASC
+  `;
+  res.json({ orders, vendorName: vendor.name, stallNumber: vendor.stallNumber });
 });
 
 // Update order status
@@ -73,14 +92,13 @@ router.post('/orders/:id/status', async (req, res) => {
 // Menu management
 router.get('/menu', async (req, res) => {
   const vendor = await getVendor(req);
-  const apiVendor = await prisma.vendor.findFirst({
-    where: { name: 'International Food Court' }
-  });
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } } });
+  const apiVendorIds = apiVendors.map(v => v.id);
   const items = await prisma.menuItem.findMany({
-    where: { vendorId: { in: [vendor.id, ...(apiVendor ? [apiVendor.id] : [])] } },
+    where: { vendorId: { in: [vendor.id, ...apiVendorIds] } },
     orderBy: [{ vendorId: 'asc' }, { category: 'asc' }],
   });
-  res.render('vendor/menu', { title: 'Manage Menu – ByteMarket', vendor, items, apiVendor });
+  res.render('vendor/menu', { title: 'Manage Menu – ByteMarket', vendor, items, apiVendors });
 });
 
 // Add menu item
@@ -112,11 +130,8 @@ router.post('/menu/:id/toggle', async (req, res) => {
 // Sales report
 router.get('/sales', async (req, res) => {
   const vendor = await getVendor(req);
-  const apiVendor = await prisma.vendor.findFirst({
-    where: { name: 'International Food Court' }
-  });
-  const vendorIds = [vendor.id];
-  if (apiVendor) vendorIds.push(apiVendor.id);
+  const apiVendors = await prisma.vendor.findMany({ where: { stallNumber: { startsWith: 'API-' } } });
+  const vendorIds = [vendor.id, ...apiVendors.map(v => v.id)];
 
   const salesData = await prisma.$queryRaw`
     SELECT mi.name, v.name AS vendor_name, SUM(ol.quantity) AS units_sold,

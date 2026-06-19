@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
       req.flash('error', 'Invalid username or password.');
       return res.redirect('/login');
     }
-    req.session.user = { id: user.id, username: user.username, role: user.role };
+    req.session.user = { id: user.id, username: user.username, role: user.role, vendorId: user.vendorId };
     req.flash('success', `Welcome back, ${user.username}!`);
     res.redirect('/');
   } catch (err) {
@@ -59,6 +59,15 @@ router.post('/register', async (req, res) => {
     else req.flash('error', 'Registration failed.');
     res.redirect('/register');
   }
+});
+
+// Vendor accounts reference page (public)
+router.get('/vendor-accounts', async (req, res) => {
+  const vendors = await prisma.vendor.findMany({
+    include: { user: { select: { username: true } } },
+    orderBy: { id: 'asc' },
+  });
+  res.render('auth/vendor-accounts', { title: 'Vendor Accounts – ByteMarket', vendors });
 });
 
 // Logout

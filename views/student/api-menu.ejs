@@ -33,11 +33,12 @@
             </button>
             <ul class="dropdown-list" id="dropdownList">
               <li class="dropdown-item active" data-category="all">All Categories</li>
-              <% menu.forEach(({ category })=> { %>
-                <li class="dropdown-item" data-category="<%= category %>">
-                  <%= category.replace(/-/g, ' ' ) %>
+              <% const allCategories = [...new Set(menu.flatMap(s => s.items.map(i => i._category)).filter(Boolean))]; %>
+              <% allCategories.forEach(cat => { %>
+                <li class="dropdown-item" data-category="<%= cat %>">
+                  <%= cat.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') %>
                 </li>
-                <% }) %>
+              <% }) %>
             </ul>
           </div>
         </div>
@@ -55,11 +56,11 @@
       </div>
 
       <!-- Menu Sections -->
-      <% menu.forEach(({ category, items })=> { %>
-        <section class="menu-section" data-section="<%= category %>">
+      <% menu.forEach(({ vendorName, items })=> { %>
+        <section class="menu-section" data-section="<%= vendorName.toLowerCase().replace(/\s+/g, '-') %>">
           <div class="section-heading">
             <h2 class="category-title">
-              <%= category.replace(/-/g, ' ' ) %>
+              <%= vendorName %>
             </h2>
             <span class="item-count" data-total="<%= items.length %>">
               <%= items.length %> items
@@ -67,31 +68,12 @@
           </div>
 
           <div class="menu-grid">
-            <%
-              const vendorMap = {
-                'burgers':       'Burger Station',
-                'pizzas':        'Pizza Corner',
-                'best-foods':    'Best Bites',
-                'fried-chicken': 'Crispy Chick',
-                'drinks':        'Sip & Go',
-                'desserts':      'Sweet Spot',
-                'ice-cream':     'Chill Zone',
-                'sandwiches':    'Sandwich Hub',
-                'steaks':        'Grill House',
-                'bbqs':          'BBQ Pit',
-                'breads':        'The Bakery',
-                'chocolates':    'Choco World',
-                'porks':         'Pork Palace',
-                'sausages':      'Sausage Co.',
-              };
-              const vendorName = vendorMap[category] || category;
-            %>
-
               <% items.forEach((item, idx)=> { %>
-                <% const stock=stockMap && stockMap[item.name] !=null ? stockMap[item.name] : 10; %>
+                <% const stock = item._stock != null ? item._stock : (stockMap && stockMap[item.name] != null ? stockMap[item.name] : 10); %>
                   <div class="menu-card" data-name="<%= item.name.toLowerCase() %>"
-                    data-desc="<%= item.dsc.toLowerCase() %>" data-img="<%= item.img %>" data-itemid="<%= item.id %>"
-                    data-rate="<%= item.rate %>">
+                    data-desc="<%= item.dsc.toLowerCase() %>" data-img="<%= item.img %>" data-itemid="<%= item._dbId || item.id %>"
+                    data-db-id="<%= item._dbId || '' %>" data-rate="<%= item.rate %>"
+                    data-category="<%= item._category || '' %>">
                     <div class="menu-card-img-wrap">
                       <img src="<%= item.img %>" alt="<%= item.name %>" class="menu-card-img" loading="lazy"
                         onerror="this.src='https://placehold.co/400x300/1a1d27/f5a623?text=No+Image'" />
@@ -132,7 +114,7 @@
                         <input type="number" class="qty-input" value="1" min="1" max="<%= stock %>" readonly />
                         <button class="qty-btn" onclick="changeQty(this, 1)">+</button>
                       </div>
-                      <button class="add-cart-btn" onclick="addToCart(this, '<%= item.id %>')"
+                      <button class="add-cart-btn" onclick="addToCart(this, '<%= item._dbId || item.id %>')"
                         data-stock="<%= stock %>">
                         Add to Cart
                       </button>
@@ -934,15 +916,16 @@
         const qty = qtyEl.value;
         const name = card.querySelector('.menu-card-name').textContent;
         const price = card.querySelector('.menu-card-price').textContent.replace('₱', '');
-        const vendor = card.querySelector('.vendor-tag').textContent;
-        const desc = card.querySelector('.menu-card-desc').textContent;
+        const vendor = card.querySelector('.vendor-tag').textContent.trim();
+        const desc = card.querySelector('.menu-card-desc').textContent.trim();
         const section = card.closest('.menu-section');
         const category = section ? section.dataset.section : '';
 
+        const isLocal = card.dataset.dbId && card.dataset.dbId !== '';
         const params = new URLSearchParams();
-        params.set('itemId', itemId);
+        params.set('itemId', isLocal ? card.dataset.dbId : itemId);
         params.set('quantity', qty);
-        params.set('apiItem', 'true');
+        params.set('apiItem', isLocal ? 'false' : 'true');
         params.set('name', name);
         params.set('price', price);
         params.set('vendorName', vendor);
@@ -1059,21 +1042,16 @@
         const sections = document.querySelectorAll('.menu-section');
         let totalVisible = 0;
         sections.forEach(section => {
-          const cat = section.dataset.section;
-
-          if (activeCategory !== 'all' && cat !== activeCategory) {
-            section.style.display = 'none';
-            return;
-          }
-
           section.style.display = '';
           const cards = section.querySelectorAll('.menu-card');
           let visible = 0;
 
           cards.forEach(card => {
-            const match = !searchQuery
+            const catMatch = activeCategory === 'all' || card.dataset.category === activeCategory;
+            const searchMatch = !searchQuery
               || card.dataset.name.includes(searchQuery)
               || card.dataset.desc.includes(searchQuery);
+            const match = catMatch && searchMatch;
             card.style.display = match ? '' : 'none';
             if (match) visible++;
           });
@@ -1087,7 +1065,7 @@
 
         const hasFilter = activeCategory !== 'all';
         filterStatus.style.display = hasFilter ? 'flex' : 'none';
-        if (hasFilter) filterLabel.textContent = activeCategory.replace(/-/g, ' ');
+        if (hasFilter) filterLabel.textContent = dropdownLabel.textContent;
 
         noResults.style.display = totalVisible === 0 ? 'block' : 'none';
       }

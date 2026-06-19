@@ -88,6 +88,116 @@
         .catch(() => location.reload());
     });
   });
+
+  // ── Auto-refresh: poll for new orders every 5s ──────────
+  let polling = true;
+  async function pollQueue() {
+    if (!polling) return;
+    try {
+      const res = await fetch('/vendor/dashboard/data');
+      if (!res.ok) { polling = false; return; }
+      const data = await res.json();
+      const container = document.querySelector('.container[data-auto-refresh]');
+      if (!container) return;
+
+      // Update vendor name
+      const sub = container.querySelector('.page-sub');
+      if (sub) sub.textContent = data.vendorName + ' · Stall ' + data.stallNumber;
+
+      const grid = container.querySelector('.queue-grid');
+      const empty = container.querySelector('.empty-cart');
+
+      if (data.orders.length === 0) {
+        if (grid) grid.remove();
+        if (!empty) {
+          const msg = '<div class="empty-cart"><p>No active orders right now.</p></div>';
+          const flash = container.querySelector('.flash') || container.querySelector('.page-header');
+          if (flash) flash.insertAdjacentHTML('afterend', msg);
+        }
+        return;
+      }
+
+      // Rebuild queue grid from fresh data
+      const oldGrid = container.querySelector('.queue-grid');
+      if (oldGrid) oldGrid.remove();
+      if (empty) empty.remove();
+
+      const newGrid = document.createElement('div');
+      newGrid.className = 'queue-grid';
+
+      data.orders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'queue-card status-card-' + order.status.toLowerCase();
+
+        card.innerHTML = `
+          <div class="queue-card-header">
+            <span class="order-id">#${order.id}</span>
+            <span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span>
+          </div>
+          <p class="queue-student">${order.student}</p>
+          <ul class="queue-items">
+            ${(order.items || []).map(i => `<li>${i.qty}× ${i.name} <em>(${i.vendor})</em></li>`).join('')}
+          </ul>
+          <p class="queue-subtotal">₱${parseFloat(order.subtotal).toFixed(2)}</p>
+          <p class="queue-time">${new Date(order.createdAt).toLocaleTimeString()}</p>
+          <form action="/vendor/orders/${order.id}/status" method="POST" class="queue-actions">
+            ${order.status === 'PENDING'
+              ? '<button name="status" value="PREPARING" class="btn-primary btn-sm">Start Preparing</button><button name="status" value="CANCELLED" class="btn-danger btn-sm">Cancel</button>'
+              : order.status === 'PREPARING'
+                ? '<button name="status" value="READY" class="btn-primary btn-sm">Mark Ready</button>'
+                : order.status === 'READY'
+                  ? '<button name="status" value="COMPLETED" class="btn-success btn-sm">Complete</button>'
+                  : ''}
+          </form>`;
+        newGrid.appendChild(card);
+      });
+
+      const flash = container.querySelector('.flash') || container.querySelector('.page-header');
+      if (flash) flash.after(newGrid);
+
+      // Re-bind submit handlers
+      newGrid.querySelectorAll('.queue-actions').forEach(form => {
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const btn = e.submitter;
+          const action = this.action;
+          const data = new URLSearchParams();
+          if (btn && btn.name) data.set(btn.name, btn.value);
+          fetch(action, { method: 'POST', body: data, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+            .then(() => {
+              const card = this.closest('.queue-card');
+              if (!card) return;
+              const newStatus = btn.value;
+              if (newStatus === 'COMPLETED') {
+                card.remove();
+              } else {
+                card.querySelector('.status-badge').textContent = newStatus;
+                card.querySelector('.status-badge').className = 'status-badge status-' + newStatus.toLowerCase();
+                card.className = 'queue-card status-card-' + newStatus.toLowerCase();
+                const actions = this;
+                if (newStatus === 'CANCELLED') {
+                  actions.innerHTML = '';
+                } else if (newStatus === 'PREPARING') {
+                  actions.innerHTML = '<button name="status" value="READY" class="btn-primary btn-sm">Mark Ready</button>';
+                } else if (newStatus === 'READY') {
+                  actions.innerHTML = '<button name="status" value="COMPLETED" class="btn-success btn-sm">Complete</button>';
+                }
+              }
+              const remaining = document.querySelectorAll('.queue-card').length;
+              const badge = document.getElementById('queue-badge');
+              if (badge) {
+                badge.textContent = remaining;
+                badge.style.display = remaining > 0 ? 'inline-block' : 'none';
+              }
+            })
+            .catch(() => location.reload());
+        });
+      });
+    } catch (_) { /* ignore polling errors */ }
+  }
+
+  setInterval(pollQueue, 5000);
+  pollQueue(); // initial fetch
 </script>
 </body>
 </html>

@@ -4,7 +4,6 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
 const path = require('path');
-const http = require('http');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,15 +60,19 @@ const server = app.listen(PORT, () => {
 
 // Self-ping every 10 min to keep free-tier instances awake
 // Render auto-sets RENDER_EXTERNAL_URL; for Zeabur, set SELF_URL manually
+// Note: free-tier containers still cold-start after ~15 min idle — for truly
+// always-on, pair this with a free external pinger (cron-job.org, UptimeRobot).
 const SELF_PING_INTERVAL = 10 * 60 * 1000;
 const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL;
 if (externalUrl) {
-  console.log(`   Self-ping enabled – will ping ${externalUrl}/health every 10 min to prevent sleeping\n`);
-  setInterval(() => {
-    http.get(`${externalUrl}/health`, (res) => {
-      console.log(`[keepalive] pinged self – ${res.statusCode}`);
-    }).on('error', (err) => {
+  console.log(`   Self-ping enabled – will ping ${externalUrl}/health every 10 min to prevent sleeping`);
+  console.log('   For truly always-on, add a free external pinger (cron-job.org / UptimeRobot)\n');
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${externalUrl}/health`);
+      console.log(`[keepalive] pinged self – ${res.status}`);
+    } catch (err) {
       console.error(`[keepalive] ping failed – ${err.message}`);
-    });
+    }
   }, SELF_PING_INTERVAL);
 }
