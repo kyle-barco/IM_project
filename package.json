@@ -7,7 +7,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "db:migrate": "npx prisma migrate dev --name init",
-    "db:seed": "node prisma/seed.js",
+    "db:seed": "npx prisma db push --accept-data-loss && node prisma/seed.js",
     "db:studio": "npx prisma studio",
     "setup": "npm install && npx prisma generate && npx prisma migrate dev --name init && node prisma/seed.js"
   },

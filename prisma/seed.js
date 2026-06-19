@@ -1,15 +1,12 @@
-require('dotenv').config(); // Load environment variables from .env
+require('dotenv').config();
 
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// Set up the driver adapter using your DATABASE_URL environment variable
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
-
-// Pass the adapter directly into the constructor
 const prisma = new PrismaClient({ adapter });
 
 

@@ -38,9 +38,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check – used by Render to prevent free-tier sleeping
+// Health check – used by Render / Zeabur health probes and self-ping
 app.get('/health', (req, res) => {
-  const db = require('@prisma/client');
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -60,13 +59,14 @@ const server = app.listen(PORT, () => {
   console.log(`   Logins: admin/admin123 | student1/student123 | vendor1/vendor123\n`);
 });
 
-// Self-ping every 10 minutes to keep Render free tier awake
-const SELF_PING_INTERVAL = 10 * 60 * 1000; // 10 minutes
-if (process.env.RENDER_EXTERNAL_URL) {
-  const pingUrl = process.env.RENDER_EXTERNAL_URL;
-  console.log(`   Self-ping enabled – will ping ${pingUrl} every 10 min to prevent sleeping\n`);
+// Self-ping every 10 min to keep free-tier instances awake
+// Render auto-sets RENDER_EXTERNAL_URL; for Zeabur, set SELF_URL manually
+const SELF_PING_INTERVAL = 10 * 60 * 1000;
+const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL;
+if (externalUrl) {
+  console.log(`   Self-ping enabled – will ping ${externalUrl}/health every 10 min to prevent sleeping\n`);
   setInterval(() => {
-    http.get(`${pingUrl}/health`, (res) => {
+    http.get(`${externalUrl}/health`, (res) => {
       console.log(`[keepalive] pinged self – ${res.statusCode}`);
     }).on('error', (err) => {
       console.error(`[keepalive] ping failed – ${err.message}`);
