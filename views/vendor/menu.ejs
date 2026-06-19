@@ -25,7 +25,7 @@
     <section class="panel">
       <h3>Current Menu (<%= items.length %> items)</h3>
       <% if (items.length === 0) { %><p class="empty-state">No items yet.</p><% } %>
-      <table class="data-table">
+      <div class="data-table-wrapper"><table class="data-table">
         <thead>
           <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
         </thead>
@@ -50,7 +50,7 @@
           </tr>
           <% }) %>
         </tbody>
-      </table>
+      </table></div>
     </section>
   </main>
 </body>

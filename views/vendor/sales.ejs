@@ -25,7 +25,7 @@
       <% if (salesData.length === 0) { %>
         <p class="empty-state">No completed orders yet.</p>
       <% } else { %>
-        <table class="data-table">
+        <div class="data-table-wrapper"><table class="data-table">
           <thead>
             <tr><th>Item</th><th>Vendor</th><th>Units Sold</th><th>Revenue</th></tr>
           </thead>
@@ -39,7 +39,7 @@
             </tr>
             <% }) %>
           </tbody>
-        </table>
+        </table></div>
       <% } %>
     </section>
   </main>

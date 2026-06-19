@@ -28,7 +28,7 @@
     </section>
 
     <section class="panel">
-      <table class="data-table">
+      <div class="data-table-wrapper"><table class="data-table">
         <thead><tr><th>ID</th><th>Name</th><th>Vendor</th><th>Price</th><th>Stock</th><th>Category</th><th>Available</th><th>Actions</th></tr></thead>
         <tbody>
           <% items.forEach(item => { %>
@@ -49,7 +49,7 @@
           </tr>
           <% }) %>
         </tbody>
-      </table>
+      </table></div>
     </section>
   </main>
 

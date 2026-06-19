@@ -29,7 +29,7 @@
       <% if (topItems.length === 0) { %>
         <p class="empty-state">No completed orders yet.</p>
       <% } else { %>
-        <table class="data-table">
+        <div class="data-table-wrapper"><table class="data-table">
           <thead><tr><th>Item</th><th>Vendor</th><th>Units</th><th>Revenue</th></tr></thead>
           <tbody>
             <% topItems.forEach(row => { %>
@@ -41,13 +41,13 @@
             </tr>
             <% }) %>
           </tbody>
-        </table>
+        </table></div>
       <% } %>
     </section>
 
     <section class="panel">
       <h3>Vendors Overview</h3>
-      <table class="data-table">
+      <div class="data-table-wrapper"><table class="data-table">
         <thead><tr><th>Name</th><th>Stall</th><th>Menu Items</th><th>Status</th></tr></thead>
         <tbody>
           <% vendors.forEach(v => { %>
@@ -59,7 +59,7 @@
           </tr>
           <% }) %>
         </tbody>
-      </table>
+      </table></div>
     </section>
   </main>
 </body>
